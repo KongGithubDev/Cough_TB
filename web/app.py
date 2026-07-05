@@ -1,4 +1,4 @@
-import os, io, base64
+import os, io, base64, subprocess, tempfile
 import numpy as np
 import librosa
 import torch
@@ -97,7 +97,10 @@ def load_model():
 
 def load_and_segment(path_or_bytes):
     if isinstance(path_or_bytes, bytes):
-        y, _ = librosa.load(io.BytesIO(path_or_bytes), sr=SR)
+        try:
+            y, _ = librosa.load(io.BytesIO(path_or_bytes), sr=SR)
+        except Exception:
+            y, _ = _ffmpeg_decode(path_or_bytes)
     else:
         y, _ = librosa.load(path_or_bytes, sr=SR)
     if len(y) == 0:
@@ -112,6 +115,22 @@ def load_and_segment(path_or_bytes):
         seg = np.zeros(target_len, dtype=y.dtype)
         seg[:len(y)] = y
     return seg
+
+def _ffmpeg_decode(data: bytes, sr=SR):
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        tmpname = tmp.name
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", "pipe:0", "-ar", str(sr), "-ac", "1",
+             "-f", "wav", tmpname],
+            input=data, capture_output=True, check=True
+        )
+        y, _ = librosa.load(tmpname, sr=sr)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        raise HTTPException(400, "Audio format not supported. Use .wav or install ffmpeg.")
+    finally:
+        os.unlink(tmpname)
+    return y, sr
 
 def make_mel_rgb(y_seg):
     mel = librosa.feature.melspectrogram(
