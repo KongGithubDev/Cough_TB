@@ -20,6 +20,8 @@ CoughTB/
 │   └── templates/
 │       └── index.html           # Frontend UI
 ├── notebooks/
+│   ├── precompute_mels.ipynb    # Colab: pre-compute Mel spectrograms (~10× faster training)
+│   ├── training.ipynb           # Colab: train MobileNetV4 + Res2TSM on CODA TB
 │   ├── inference.ipynb          # Colab: inference + evaluation
 │   └── web_colab.ipynb          # Colab: deploy web app with public URL
 ├── samples/
@@ -27,7 +29,9 @@ CoughTB/
 │   └── tb-positive/             # Sample TB-positive coughs
 ├── dataset/                     # CODA TB dataset (local, not in git)
 ├── .gitignore
-└── README.md
+├── README.md
+├── TECHNICAL.md                 # Full technical pipeline documentation
+└── PAPER_DRAFT.md               # TICTA 2026 submission draft
 ```
 
 ## Model Performance
@@ -37,6 +41,7 @@ CoughTB/
 | Sensitivity (per-patient) | 91.2% | 91% |
 | Specificity (per-patient) | 91.4% | 89% |
 | ROC-AUC | 0.904 | 0.9539 |
+| Parameters | 6.6M | VGG16/ResNet50 (20–70M) |
 
 ## Quick Start
 
@@ -57,6 +62,46 @@ Open `notebooks/web_colab.ipynb` in Colab and run all cells for a public URL.
 
 Open `notebooks/inference.ipynb` in Colab for batch evaluation.
 
+## Train Your Own Model
+
+Train CoughTB from scratch on the CODA TB dataset (HuggingFace: `AHFIDAILabs/coda_tb_dataset`).
+
+### Step 1: Pre-compute Mel Spectrograms
+
+Skip expensive on-the-fly audio conversion — pre-compute once for ~10× faster training.
+
+```bash
+# 1. Download CODA TB dataset from HuggingFace
+# 2. Zip the dataset folder
+# 3. Open notebooks/precompute_mels.ipynb in Google Colab
+# 4. Upload the ZIP → run all cells → download pre-computed data
+```
+
+Expected: ~10-15 min for 10k files, ~1-2 hours for full 733k files.
+
+### Step 2: Train Model
+
+Two-phase transfer learning strategy:
+
+| Phase | Epochs | Frozen parts | Learning Rate |
+|:-----:|:------:|:-------------|:--------------|
+| 1 | 10 | Backbone (MobileNetV4) | 1e-3 (head + Res2TSM) |
+| 2 | 40 | Nothing (full fine-tune) | 1e-4 (cosine annealing) |
+
+```bash
+# Open notebooks/training.ipynb in Google Colab
+# Upload pre-computed .npy files (from Step 1) → run all cells
+# Download trained model: cough_tb_model.pth
+```
+
+Augmentation: SpecAugment (time/freq masking) + Gaussian noise.  
+Early stopping: patience 7 (Phase 2).  
+Split: Patient-level 80/20 stratified by TB status.
+
+### Step 3: Deploy
+
+Replace `web/model.pth` with your trained weights and restart the web app.
+
 ## Architecture
 
 ```
@@ -65,16 +110,21 @@ Cough Audio → Segment (0.5s) → Mel Spectrogram (224×224)
     → AdaptiveAvgPool → FC → Sigmoid → TB Probability
 ```
 
+**MobileNetV4** extracts spatial features (ImageNet-pretrained).  
+**Res2TSM** (Res2Net + Temporal Shift Module) adds temporal reasoning with only ~5K additional parameters.
+
 ## Roadmap
 
 | Phase | Status |
 |-------|--------|
 | Baseline model (MobileNetV4 + Res2TSM) | ✅ |
+| Training pipeline (Colab) | ✅ |
+| Pre-computation pipeline (10× faster training) | ✅ |
 | Colab inference notebook | ✅ |
 | Web app (FastAPI) | ✅ |
 | TICTA 2026 submission | ⏳ 20 July 2026 |
 | Mobile app (Flutter) | ⬜ |
-| External validation | ⬜ |
+| External validation (TBscreen, etc.) | ⬜ |
 | On-device inference (TFLite/ONNX) | ⬜ |
 
 ## References
