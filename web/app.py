@@ -117,19 +117,25 @@ def load_and_segment(path_or_bytes):
     return seg
 
 def _ffmpeg_decode(data: bytes, sr=SR):
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        tmpname = tmp.name
+    tmp_in = tmp_out = None
     try:
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+            f.write(data)
+            tmp_in = f.name
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            tmp_out = f.name
         subprocess.run(
-            ["ffmpeg", "-y", "-i", "pipe:0", "-ar", str(sr), "-ac", "1",
-             "-f", "wav", tmpname],
-            input=data, capture_output=True, check=True
+            ["ffmpeg", "-y", "-i", tmp_in, "-ar", str(sr), "-ac", "1",
+             "-f", "wav", tmp_out],
+            capture_output=True, check=True
         )
-        y, _ = librosa.load(tmpname, sr=sr)
+        y, _ = librosa.load(tmp_out, sr=sr)
     except (FileNotFoundError, subprocess.CalledProcessError):
         raise HTTPException(400, "Audio format not supported. Use .wav or install ffmpeg.")
     finally:
-        os.unlink(tmpname)
+        for p in (tmp_in, tmp_out):
+            if p and os.path.exists(p):
+                os.unlink(p)
     return y, sr
 
 def make_mel_rgb(y_seg):
