@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoughTB — TB Screening from Cough</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh; color: #fff; display: flex; justify-content: center; align-items: center; padding: 20px;
+  }
+  .container { max-width: 640px; width: 100%; background: rgba(255,255,255,0.06); border-radius: 24px; padding: 36px; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+  h1 { font-size: 28px; text-align: center; margin-bottom: 4px; letter-spacing: -0.5px; }
+  .subtitle { text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin-bottom: 28px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+  .tab { flex: 1; text-align: center; padding: 10px; border-radius: 12px; cursor: pointer; background: rgba(255,255,255,0.06); transition: 0.2s; font-weight: 500; font-size: 14px; }
+  .tab.active { background: rgba(99,102,241,0.3); border: 1px solid rgba(99,102,241,0.5); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .upload-area {
+    border: 2px dashed rgba(255,255,255,0.2); border-radius: 16px; padding: 32px; text-align: center; cursor: pointer; transition: 0.2s;
+    background: rgba(255,255,255,0.03);
+  }
+  .upload-area:hover { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.06); }
+  .upload-area.dragover { border-color: #6366f1; background: rgba(99,102,241,0.1); }
+  .upload-area svg { width: 48px; height: 48px; stroke: rgba(255,255,255,0.4); margin-bottom: 12px; }
+  .upload-area p { color: rgba(255,255,255,0.6); font-size: 14px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer;
+    font-size: 15px; font-weight: 600; transition: 0.2s;
+  }
+  .btn-primary { background: #6366f1; color: #fff; }
+  .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+  .btn-primary:disabled { background: #4b5563; cursor: not-allowed; transform: none; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-success { background: #22c55e; color: #fff; }
+  .btn-success:hover { background: #16a34a; }
+  .recorder-controls { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; }
+  .record-status { text-align: center; color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 16px; }
+  .recording-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ef4444; margin-right: 6px; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  #filename { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-top: 8px; }
+  .result-card { display: none; margin-top: 24px; padding: 24px; border-radius: 16px; text-align: center; }
+  .result-card.show { display: block; }
+  .result-card.tb { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); }
+  .result-card.no-tb { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); }
+  .result-label { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .result-prob { font-size: 36px; font-weight: 800; margin-bottom: 4px; }
+  .result-sub { font-size: 13px; color: rgba(255,255,255,0.5); }
+  .result-detail { margin-top: 16px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .detail-item { padding: 8px 16px; background: rgba(255,255,255,0.06); border-radius: 8px; font-size: 13px; }
+  .detail-item strong { display: block; font-size: 18px; margin-bottom: 2px; }
+  .spectrogram { margin-top: 16px; }
+  .spectrogram img { max-width: 100%; border-radius: 8px; }
+  .spinner { display: none; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .footer { text-align: center; color: rgba(255,255,255,0.25); font-size: 12px; margin-top: 24px; }
+  .error-msg { color: #ef4444; font-size: 13px; text-align: center; margin-top: 8px; display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>CoughTB</h1>
+  <p class="subtitle">AI-powered TB screening from cough sounds</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('record')">Record</div>
+    <div class="tab" onclick="switchTab('upload')">Upload File</div>
+  </div>
+
+  <div id="tab-record" class="tab-content active">
+    <div class="recorder-controls">
+      <button class="btn btn-danger" id="recordBtn" onclick="toggleRecording()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/></svg>
+        Record
+      </button>
+    </div>
+    <div class="record-status" id="recordStatus">Press Record, then cough</div>
+  </div>
+
+  <div id="tab-upload" class="tab-content">
+    <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p>Drop audio file here or click to browse</p>
+      <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:4px">Supports .wav, .mp3, .flac, .ogg, .m4a</p>
+    </div>
+    <input type="file" id="fileInput" accept="audio/*" style="display:none" onchange="onFileSelect(event)">
+    <div id="filename"></div>
+  </div>
+
+  <div style="text-align:center;margin-top:16px">
+    <button class="btn btn-primary" id="predictBtn" onclick="predict()" disabled>
+      Analyze Cough
+    </button>
+  </div>
+  <div class="spinner" id="spinner"></div>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-label" id="resultLabel"></div>
+    <div class="result-prob" id="resultProb"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <div class="result-detail" id="resultDetail"></div>
+    <div class="spectrogram" id="spectrogram"></div>
+  </div>
+
+  <div class="footer">For screening purposes only &middot; Not a medical device</div>
+</div>
+
+<script>
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordedBlob = null;
+let selectedFile = null;
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  if (tab === 'record') {
+    document.querySelector('.tab:nth-child(1)').classList.add('active');
+    document.getElementById('tab-record').classList.add('active');
+  } else {
+    document.querySelector('.tab:nth-child(2)').classList.add('active');
+    document.getElementById('tab-upload').classList.add('active');
+  }
+  document.getElementById('resultCard').classList.remove('show');
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+async function toggleRecording() {
+  if (isRecording) {
+    mediaRecorder.stop();
+    return;
+  }
+  if (!navigator.mediaDevices) {
+    showError('Microphone not available');
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      document.getElementById('recordStatus').innerHTML = 'Recording saved (' + (recordedBlob.size/1024).toFixed(0) + ' KB)';
+      document.getElementById('predictBtn').disabled = false;
+      selectedFile = null;
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    document.getElementById('recordBtn').innerHTML = '<span class="recording-dot"></span> Stop';
+    document.getElementById('recordBtn').className = 'btn btn-danger';
+    document.getElementById('recordStatus').innerHTML = '<span class="recording-dot"></span> Recording... Cough now!';
+    document.getElementById('predictBtn').disabled = true;
+  } catch (e) {
+    showError('Microphone access denied');
+  }
+}
+
+function onFileSelect(event) {
+  selectedFile = event.target.files[0];
+  if (!selectedFile) return;
+  document.getElementById('filename').textContent = selectedFile.name + ' (' + (selectedFile.size/1024).toFixed(0) + ' KB)';
+  document.getElementById('predictBtn').disabled = false;
+  recordedBlob = null;
+}
+
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) {
+    selectedFile = file;
+    document.getElementById('filename').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)';
+    document.getElementById('predictBtn').disabled = false;
+    recordedBlob = null;
+  }
+});
+
+async function predict() {
+  const card = document.getElementById('resultCard');
+  card.classList.remove('show');
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('predictBtn').disabled = true;
+
+  let formData = new FormData();
+  if (recordedBlob) {
+    formData.append('file', recordedBlob, 'recording.webm');
+  } else if (selectedFile) {
+    formData.append('file', selectedFile);
+  } else {
+    showError('No audio to analyze');
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('predictBtn').disabled = false;
+    return;
+  }
+
+  try {
+    const res = await fetch('/predict', { method: 'POST', body: formData });
+    if (!res.ok) throw new Error('Server error');
+    const data = await res.json();
+    showResult(data);
+  } catch (e) {
+    showError('Prediction failed: ' + e.message);
+  }
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('predictBtn').disabled = false;
+}
+
+function showResult(data) {
+  const card = document.getElementById('resultCard');
+  const label = document.getElementById('resultLabel');
+  const prob = document.getElementById('resultProb');
+  const sub = document.getElementById('resultSub');
+  const detail = document.getElementById('resultDetail');
+  const spec = document.getElementById('spectrogram');
+
+  card.className = 'result-card show ' + (data.is_tb ? 'tb' : 'no-tb');
+  label.textContent = data.is_tb ? 'TB Detected' : 'No TB Detected';
+  prob.textContent = (data.tb_probability * 100).toFixed(1) + '%';
+  sub.textContent = data.is_tb ? 'Suggests TB — consult a healthcare professional' : 'No TB signature detected';
+
+  detail.innerHTML = `
+    <div class="detail-item">TB Probability <strong>${(data.tb_probability*100).toFixed(1)}%</strong></div>
+    <div class="detail-item">Confidence <strong>${(data.confidence_tb*100).toFixed(1)}%</strong></div>
+  `;
+
+  if (data.spectrogram) {
+    spec.innerHTML = '<img src="data:image/png;base64,' + data.spectrogram + '" alt="Spectrogram">';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>
