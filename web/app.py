@@ -11,6 +11,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 import uvicorn
+from dotenv import load_dotenv
+
+# Load .env file from project root (two dirs up from this file)
+_env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(_env_path)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Use OMP_NUM_THREADS env var (e.g., set to 4 on VPS with 10GB RAM)

@@ -26,3 +26,6 @@ Thumbs.db
 # Web app
 web/__pycache__/
 web/*.pyc
+
+# Environment variables (keep .env.example in git)
+.env
