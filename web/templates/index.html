@@ -461,8 +461,10 @@ document.addEventListener('drop', e => {
   deactivateDropZone();
 });
 
-// Drop zone — activate/deactivate zone styling
+// Drop zone — activate/deactivate zone styling.
+// preventDefault on dragenter is REQUIRED for browser to allow drop on this element.
 dropZone.addEventListener('dragenter', e => {
+  e.preventDefault();
   activateDropZone();
 });
 dropZone.addEventListener('dragleave', e => {
