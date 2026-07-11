@@ -13,7 +13,9 @@ from PIL import Image
 import uvicorn
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.set_num_threads(1)  # limit CPU threads to save RAM
+# Use OMP_NUM_THREADS env var (e.g., set to 4 on VPS with 10GB RAM)
+# Defaults to 1 for Render Free Tier (512MB RAM)
+torch.set_num_threads(int(os.environ.get("OMP_NUM_THREADS", "1")))
 SR = 16000
 CROP = 0.5
 N_MELS = 224

@@ -167,11 +167,12 @@ if ($InstallService) {
     & $nssmExe stop $ServiceName 2>$null
     & $nssmExe remove $ServiceName confirm 2>$null
 
-    # Install
+    # Install (4 threads for inference — adjust if your VPS has fewer cores)
     $uvicornExe = "$venvDir\Scripts\uvicorn.exe"
     & $nssmExe install $ServiceName $uvicornExe "app:app --host 0.0.0.0 --port $Port --workers 1"
     & $nssmExe set $ServiceName AppDirectory "$AppDir\web"
     & $nssmExe set $ServiceName AppEnvironmentExtra "PORT=$Port"
+    & $nssmExe set $ServiceName AppEnvironmentExtra "OMP_NUM_THREADS=4"
     & $nssmExe set $ServiceName DisplayName "CoughTB — TB Cough Detection"
     & $nssmExe set $ServiceName Description "AI-powered TB screening from cough sounds"
     & $nssmExe set $ServiceName Start SERVICE_AUTO_START
