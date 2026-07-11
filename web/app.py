@@ -175,10 +175,25 @@ def make_mel_rgb(y_seg):
     return mel_db, rgb
 
 
+def _make_magma_lut(size=256):
+    """Create a magma-like colormap LUT (256x3 uint8) — medical-grade, no matplotlib."""
+    c = [0.001, 0.042, 0.162, 0.362, 0.565, 0.754, 0.911, 0.983, 1.000]  # R
+    c = [(0.000, 0.010, 0.021, 0.070, 0.162, 0.312, 0.491, 0.709, 0.910),  # G
+         (0.014, 0.079, 0.298, 0.456, 0.498, 0.473, 0.386, 0.286, 0.180)]  # B
+    xp = np.linspace(0, 1, 9)
+    x = np.linspace(0, 1, size)
+    r = np.interp(x, xp, [0.001, 0.042, 0.162, 0.362, 0.565, 0.754, 0.911, 0.983, 1.000])
+    g = np.interp(x, xp, [0.000, 0.010, 0.021, 0.070, 0.162, 0.312, 0.491, 0.709, 0.910])
+    b = np.interp(x, xp, [0.014, 0.079, 0.298, 0.456, 0.498, 0.473, 0.386, 0.286, 0.180])
+    return (np.stack([r, g, b], axis=1) * 255).astype(np.uint8)
+
+_MAGMA_LUT = _make_magma_lut()
+
 def mel_to_image(mel_db):
-    """Generate spectrogram image using PIL only (no matplotlib — saves ~150MB RAM)."""
+    """Generate spectrogram with magma colormap (numpy+PIL only, no matplotlib)."""
     norm = ((mel_db - mel_db.min()) / (mel_db.max() - mel_db.min() + 1e-8) * 255).astype(np.uint8)
-    img = Image.fromarray(255 - norm, mode='L').resize((672, 336), Image.LANCZOS)
+    colored = _MAGMA_LUT[norm[::-1, :]]  # flip Y: low freq at bottom
+    img = Image.fromarray(colored, mode='RGB').resize((672, 336), Image.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format='PNG', optimize=True)
     return base64.b64encode(buf.getvalue()).decode()
