@@ -132,7 +132,7 @@ Write-Host "  ✓ All dependencies installed" -ForegroundColor Green
 
 # ---- Step 4: Install as Windows service (via NSSM) ----
 if ($InstallService) {
-    Write-Host "[5/5] Installing as Windows service '$ServiceName'..." -ForegroundColor Yellow
+    Write-Host "[4/4] Installing as Windows service '$ServiceName'..." -ForegroundColor Yellow
     
     # Download NSSM if not present
     $nssmExe = "$AppDir\nssm.exe"

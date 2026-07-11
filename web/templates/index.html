@@ -414,7 +414,7 @@ body {
     <!-- Tab: Record -->
     <div id="tab-record" class="tab-content active">
       <div class="record-area">
-        <div class="record-visual" id="recordBtn" onclick="toggleRecording()">
+        <div class="record-visual" id="recordBtn" onclick="toggleRecording()" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' ')toggleRecording()">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
         </div>
         <div class="record-status" id="recordStatus">Tap to start recording</div>
@@ -561,6 +561,8 @@ async function toggleRecording() {
       stream.getTracks().forEach(t => t.stop());
       recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
       document.getElementById('recordStatus').textContent = 'Recording saved — ' + (recordedBlob.size / 1024).toFixed(0) + ' KB';
+      document.getElementById('recordBtn').classList.remove('recording');
+      isRecording = false;
       updateAnalyzeBtn();
       selectedFile = null;
       clearInterval(timerInterval);
