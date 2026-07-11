@@ -36,7 +36,6 @@ tailwind.config = {
 #dropZone.drag-active .drop-icon { transform: translateY(-4px) scale(1.1); }
 #dropZone .dash-border { stroke-dasharray: 8 4; animation: dash-flow 0.8s linear infinite; }
 #fileInfo { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-
 </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-900 min-h-screen flex justify-center px-4 py-8 sm:py-12">
@@ -86,8 +85,8 @@ tailwind.config = {
       <div id="dropZone" onclick="document.getElementById('fileInput').click()"
            class="relative overflow-hidden border-2 border-dashed border-slate-300 rounded-xl py-9 px-6 text-center cursor-pointer transition-all duration-300 hover:border-cyan-500 hover:bg-cyan-50/40">
         <!-- Animated dashed border SVG -->
-        <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-0 transition-opacity duration-300" style="color:#06b6d4">
-          <rect x="1" y="1" width="calc(100% - 2)" height="calc(100% - 2)" rx="12" ry="12"
+        <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-0 transition-opacity duration-300" style="color:#06b6d4; overflow:visible">
+          <rect x="1" y="1" width="100%" height="100%" rx="12" ry="12"
                 fill="none" stroke="currentColor" stroke-width="2" class="dash-border" />
         </svg>
         <!-- Icon container -->
@@ -405,21 +404,17 @@ function clearFile() {
   document.getElementById('dropFormats').classList.remove('hidden');
   disableAnalyzeBtn();
 }
+
 /* ── Drag & Drop with Overlay ── */
 const dropZone = document.getElementById('dropZone');
 const dragOverlay = document.getElementById('dragOverlay');
 const dashSvg = dropZone.querySelector('svg');
 
-// Track drag count for proper nested dragenter/dragleave handling
-let _dragCount = 0;
+let _isDragging = false;
+let _dragHideTimer = null;
 
-function showDragOverlay() {
-  dragOverlay.classList.remove('hidden');
-}
-
-function hideDragOverlay() {
-  dragOverlay.classList.add('hidden');
-}
+function showDragOverlay() { dragOverlay.classList.remove('hidden'); }
+function hideDragOverlay() { dragOverlay.classList.add('hidden'); }
 
 function activateDropZone() {
   dropZone.classList.add('drag-active', 'border-cyan-500', 'bg-cyan-50/40');
@@ -435,67 +430,66 @@ function deactivateDropZone() {
   dashSvg.classList.add('opacity-0');
 }
 
-// Document-level drag listeners for overlay
+// Document-level — show/hide full-page overlay
 document.addEventListener('dragenter', e => {
   e.preventDefault();
-  _dragCount++;
-  if (_dragCount === 1) showDragOverlay();
+  clearTimeout(_dragHideTimer);
+  if (!_isDragging) {
+    _isDragging = true;
+    showDragOverlay();
+  }
 });
 document.addEventListener('dragover', e => {
   e.preventDefault();
-  // Also activate the drop zone if hovering over it
-  if (dropZone.matches(':hover')) {
-    activateDropZone();
-  }
+  if (dropZone.matches(':hover')) activateDropZone();
 });
 document.addEventListener('dragleave', e => {
   e.preventDefault();
-  _dragCount--;
-  if (_dragCount <= 0) {
-    _dragCount = 0;
-    hideDragOverlay();
-    deactivateDropZone();
-  }
+  clearTimeout(_dragHideTimer);
+  _dragHideTimer = setTimeout(() => {
+    if (_isDragging) {
+      _isDragging = false;
+      hideDragOverlay();
+      deactivateDropZone();
+    }
+  }, 80);
+});
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  _isDragging = false;
+  clearTimeout(_dragHideTimer);
+  hideDragOverlay();
+  deactivateDropZone();
 });
 
-// Drop zone specific listeners
+// Drop zone — activate/deactivate zone styling
 dropZone.addEventListener('dragenter', e => {
-  e.stopPropagation();
+  e.preventDefault();
   activateDropZone();
 });
 dropZone.addEventListener('dragleave', e => {
-  // Only deactivate if actually leaving the drop zone
-  if (!dropZone.contains(e.relatedTarget)) {
-    deactivateDropZone();
-  }
+  e.preventDefault();
+  if (!dropZone.contains(e.relatedTarget)) deactivateDropZone();
 });
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
   e.stopPropagation();
-  _dragCount = 0;
+  _isDragging = false;
+  clearTimeout(_dragHideTimer);
   hideDragOverlay();
   deactivateDropZone();
   const f = e.dataTransfer.files[0];
   if (f && f.type.startsWith('audio/')) {
     setFile(f);
-    // Add ripple effect
     dropZone.classList.add('drop-ripple');
     setTimeout(() => dropZone.classList.remove('drop-ripple'), 1000);
   } else {
-    // Show invalid file shake
     dropZone.classList.add('border-red-400', 'bg-red-50/40');
     setTimeout(() => {
       dropZone.classList.remove('border-red-400', 'bg-red-50/40');
       dropZone.classList.add('border-slate-300');
     }, 800);
   }
-});
-
-document.addEventListener('drop', e => {
-  e.preventDefault();
-  _dragCount = 0;
-  hideDragOverlay();
-  deactivateDropZone();
 });
 
 /* ── WebM → WAV ── */
