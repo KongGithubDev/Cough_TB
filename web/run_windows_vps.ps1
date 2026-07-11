@@ -176,7 +176,6 @@ if ($UninstallService) {
 }
 
 # ---- Start ----
-$step++
 if ($InstallService) {
     Write-Host ""
     Write-Host "=======================================" -ForegroundColor Cyan
