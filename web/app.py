@@ -1,4 +1,4 @@
-import os, io, base64, subprocess, tempfile
+import os, io, base64, gc, subprocess, tempfile
 import numpy as np
 import librosa
 import torch
@@ -9,13 +9,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from PIL import Image
 import uvicorn
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.set_num_threads(1)  # limit CPU threads to save RAM
 SR = 16000
 CROP = 0.5
 N_MELS = 224
 FMAX = 8000
+
 
 class TemporalShift(nn.Module):
     def __init__(self, channels, shift_div=8):
@@ -29,6 +32,7 @@ class TemporalShift(nn.Module):
         out[:, 1:, self.fold:2*self.fold, :] = t[:, :-1, self.fold:2*self.fold, :]
         out[:, :, 2*self.fold:, :] = t[:, :, 2*self.fold:, :]
         return out.permute(0, 2, 1, 3)
+
 
 class Res2TSMBlock(nn.Module):
     def __init__(self, channels, scale=4, shift_div=8):
@@ -56,6 +60,7 @@ class Res2TSMBlock(nn.Module):
         out = torch.cat(outs, dim=1)
         return self.act(self.bn(out))
 
+
 class MobileNetV4_Res2TSM(nn.Module):
     def __init__(self, model_key, scale=4, shift_div=8, dropout=0.3):
         super().__init__()
@@ -74,7 +79,9 @@ class MobileNetV4_Res2TSM(nn.Module):
         out = self.global_pool(feat).view(feat.size(0), -1)
         return self.fc(out).squeeze(1)
 
+
 model = None
+
 
 def load_model():
     global model
@@ -94,6 +101,7 @@ def load_model():
     model.eval()
     print(f"Model loaded on {DEVICE}")
     return model
+
 
 def load_and_segment(path_or_bytes):
     if isinstance(path_or_bytes, bytes):
@@ -115,6 +123,7 @@ def load_and_segment(path_or_bytes):
         seg = np.zeros(target_len, dtype=y.dtype)
         seg[:len(y)] = y
     return seg
+
 
 def _ffmpeg_decode(data: bytes, sr=SR):
     tmp_in = tmp_out = None
@@ -138,6 +147,7 @@ def _ffmpeg_decode(data: bytes, sr=SR):
                 os.unlink(p)
     return y, sr
 
+
 def make_mel_rgb(y_seg):
     mel = librosa.feature.melspectrogram(
         y=y_seg, sr=SR, n_mels=N_MELS, fmax=FMAX,
@@ -157,6 +167,16 @@ def make_mel_rgb(y_seg):
     rgb = np.stack([normed] * 3, axis=0)
     return mel_db, rgb
 
+
+def mel_to_image(mel_db):
+    """Generate spectrogram image using PIL only (no matplotlib — saves ~150MB RAM)."""
+    norm = ((mel_db - mel_db.min()) / (mel_db.max() - mel_db.min() + 1e-8) * 255).astype(np.uint8)
+    img = Image.fromarray(255 - norm, mode='L').resize((672, 336), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG', optimize=True)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
 def predict(audio_bytes):
     y_seg = load_and_segment(audio_bytes)
     if y_seg is None:
@@ -165,39 +185,40 @@ def predict(audio_bytes):
     with torch.no_grad():
         input_tensor = torch.from_numpy(mel_rgb).float().unsqueeze(0).to(DEVICE)
         prob = model(input_tensor).cpu().numpy()[0]
+    # Clean up large tensors immediately
+    del input_tensor, mel_rgb
+    gc.collect()
     is_tb = bool(prob > 0.5)
-    return {
+    result = {
         "tb_probability": float(prob),
         "is_tb": is_tb,
         "confidence_tb": float(prob) if is_tb else float(1 - prob),
-        "label": "TB Detected" if is_tb else "No TB Detected"
+        "label": "TB Detected" if is_tb else "No TB Detected",
+        "spectrogram": mel_to_image(mel_db)
     }
+    del mel_db
+    gc.collect()
+    return result
 
-def mel_to_image(mel_db):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.imshow(mel_db, aspect='auto', origin='lower', cmap='magma')
-    ax.axis('off')
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
-    plt.close(fig)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     load_model()
     yield
+    # Cleanup on shutdown
+    global model
+    model = None
+    gc.collect()
+
 
 app = FastAPI(title="CoughTB", lifespan=lifespan)
-
 templates = Jinja2Templates(directory="templates")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse(request, "index.html")
+
 
 @app.post("/predict")
 async def predict_endpoint(file: UploadFile = File(...)):
@@ -205,15 +226,15 @@ async def predict_endpoint(file: UploadFile = File(...)):
     if len(audio_bytes) == 0:
         raise HTTPException(400, "Empty file")
     result = predict(audio_bytes)
-    mel = load_and_segment(audio_bytes)
-    if mel is not None:
-        mel_db, _ = make_mel_rgb(mel)
-        result["spectrogram"] = mel_to_image(mel_db)
+    if "error" in result:
+        raise HTTPException(422, result["error"])
     return JSONResponse(result)
+
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "device": str(DEVICE)}
+
 
 if __name__ == "__main__":
     load_model()

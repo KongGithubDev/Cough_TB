@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install CPU-only PyTorch (no CUDA libs — saves ~2GB image size and ~200MB RAM)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
 # Copy requirements first (Docker layer caching)
 COPY web/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
