@@ -305,7 +305,7 @@ const STEPS = [
   { id: 4, label: 'Running AI model' },
   { id: 5, label: 'Generating result' }
 ];
-let _progressTimer = null;
+let _progressTimers = [];
 let _currentStep = 0;
 
 function resetProgress() {
@@ -328,11 +328,12 @@ function advanceProgress() {
   icon.style.animation = 'spin 0.7s linear infinite';
   _currentStep++;
   // Auto-advance every 1.2s to simulate server processing
-  _progressTimer = setTimeout(() => advanceProgress(), 1200);
+  _progressTimers.push(setTimeout(() => advanceProgress(), 1200));
 }
 
 function completeProgress() {
-  if (_progressTimer) { clearTimeout(_progressTimer); _progressTimer = null; }
+  _progressTimers.forEach(t => clearTimeout(t));
+  _progressTimers = [];
   // Mark all remaining steps as done
   document.querySelectorAll('[data-step]').forEach(el => {
     el.classList.remove('opacity-40', 'border-cyan-500', 'bg-cyan-50');
@@ -357,11 +358,11 @@ async function analyze() {
   try {
     if (recordedBlob) {
       advanceProgress(); // Step 1: loading
-      setTimeout(() => advanceProgress(), 600); // Step 2: converting
+      _progressTimers.push(setTimeout(() => advanceProgress(), 600)); // Step 2: converting
       fd.append('file', await webmToWav(recordedBlob), 'recording.wav');
     } else if (selectedFile) {
       advanceProgress(); // Step 1: loading
-      setTimeout(() => advanceProgress(), 400); // Step 2: converting (skipped for files)
+      _progressTimers.push(setTimeout(() => advanceProgress(), 400)); // Step 2: converting
       fd.append('file', selectedFile);
     } else {
       showError('No audio selected');
@@ -378,8 +379,9 @@ async function analyze() {
   try {
     const r = await fetch('/predict', { method: 'POST', body: fd });
     if (!r.ok) throw new Error(r.status === 422 ? 'Could not analyze audio' : 'Server error');
+    const data = await r.json();
     completeProgress();
-    setTimeout(() => showResult(await r.json()), 400);
+    showResult(data);
   } catch (e) {
     showError(e.message);
   }
