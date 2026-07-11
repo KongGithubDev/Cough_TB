@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: coughtb
+    runtime: docker
+    repo: https://github.com/KongGithubDev/Cough_TB.git
+    branch: main
+    dockerfilePath: web/Dockerfile
+    dockerContext: web
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
