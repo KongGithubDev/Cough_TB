@@ -186,10 +186,36 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- Spectrogram -->
-    <div id="spectrogramSection" class="hidden">
-      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Cough Spectrogram</p>
-      <img id="spectrogramImg" alt="Cough spectrogram" class="w-full rounded-xl border border-slate-200">
+    <!-- Analysis Charts -->
+    <div id="chartsSection" class="hidden">
+      <!-- Chart tabs -->
+      <div class="flex gap-1 bg-slate-100 rounded-lg p-0.5 mb-3">
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="spectrogram" data-active="true">Spectrogram</button>
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="waveform" data-active="false">Waveform</button>
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="freq" data-active="false">Freq Spectrum</button>
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="mfcc" data-active="false">MFCC</button>
+      </div>
+      <!-- Chart images -->
+      <div class="chart-view" data-chart="spectrogram">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Mel Spectrogram</p>
+        <p class="text-xs text-slate-400 mb-2 leading-relaxed">Frequency content over time. <span class="text-cyan-600">Warm colors</span> = higher energy. Key for TB cough pattern analysis.</p>
+        <img id="spectrogramImg" alt="Mel spectrogram" class="w-full rounded-xl border border-slate-200">
+      </div>
+      <div class="chart-view hidden" data-chart="waveform">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Audio Waveform</p>
+        <p class="text-xs text-slate-400 mb-2 leading-relaxed">Raw audio signal amplitude over time. Shows cough intensity and duration patterns.</p>
+        <img id="waveformImg" alt="Audio waveform" class="w-full rounded-xl border border-slate-200">
+      </div>
+      <div class="chart-view hidden" data-chart="freq">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Frequency Spectrum</p>
+        <p class="text-xs text-slate-400 mb-2 leading-relaxed">Average energy across frequency bands. <span class="text-cyan-600">Magma colors</span> indicate relative intensity.</p>
+        <img id="freqImg" alt="Frequency spectrum" class="w-full rounded-xl border border-slate-200">
+      </div>
+      <div class="chart-view hidden" data-chart="mfcc">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">MFCC Features</p>
+        <p class="text-xs text-slate-400 mb-2 leading-relaxed">Mel-frequency cepstral coefficients. Captures timbre &amp; vocal tract shape — key for respiratory analysis.</p>
+        <img id="mfccImg" alt="MFCC heatmap" class="w-full rounded-xl border border-slate-200">
+      </div>
     </div>
 
     <!-- Technical Details -->
@@ -229,6 +255,16 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
     btn.dataset.active = 'true';
     document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
     hideResult(); hideError();
+  });
+});
+
+/* ── Chart Tabs ── */
+document.querySelectorAll('.chart-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.chart-tab').forEach(b => b.dataset.active = 'false');
+    document.querySelectorAll('.chart-view').forEach(v => v.classList.add('hidden'));
+    btn.dataset.active = 'true';
+    document.querySelector(`.chart-view[data-chart="${btn.dataset.chart}"]`).classList.remove('hidden');
   });
 });
 
@@ -482,9 +518,17 @@ function showResult(d) {
   cb.style.width = (d.confidence_tb * 100) + '%';
   cb.className = 'h-full rounded-full transition-all duration-500 ease-out bg-' + (clr === 'red' ? 'red-500' : clr === 'amber' ? 'amber-500' : 'green-500');
 
-  const ss = document.getElementById('spectrogramSection');
-  if (d.spectrogram) { document.getElementById('spectrogramImg').src = 'data:image/png;base64,' + d.spectrogram; ss.classList.remove('hidden'); }
-  else { ss.classList.add('hidden'); }
+  // Charts
+  const cs = document.getElementById('chartsSection');
+  if (d.spectrogram) {
+    document.getElementById('spectrogramImg').src = 'data:image/png;base64,' + d.spectrogram;
+    document.getElementById('waveformImg').src = d.waveform ? 'data:image/png;base64,' + d.waveform : '';
+    document.getElementById('freqImg').src = d.freq_spectrum ? 'data:image/png;base64,' + d.freq_spectrum : '';
+    document.getElementById('mfccImg').src = d.mfcc ? 'data:image/png;base64,' + d.mfcc : '';
+    cs.classList.remove('hidden');
+  } else {
+    cs.classList.add('hidden');
+  }
 
   // Technical details
   const tech = document.getElementById('techDetails');

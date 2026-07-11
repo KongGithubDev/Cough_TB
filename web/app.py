@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from PIL import Image
+from PIL import Image, ImageDraw
 import uvicorn
 from dotenv import load_dotenv
 
@@ -186,14 +186,87 @@ def _make_magma_lut(size=256):
 
 _MAGMA_LUT = _make_magma_lut()
 
-def mel_to_image(mel_db):
-    """Generate spectrogram with magma colormap (numpy+PIL only, no matplotlib)."""
-    norm = ((mel_db - mel_db.min()) / (mel_db.max() - mel_db.min() + 1e-8) * 255).astype(np.uint8)
-    colored = _MAGMA_LUT[norm[::-1, :]]  # flip Y: low freq at bottom
-    img = Image.fromarray(colored, mode='RGB').resize((672, 336), Image.LANCZOS)
+def _img_to_b64(img):
     buf = io.BytesIO()
     img.save(buf, format='PNG', optimize=True)
     return base64.b64encode(buf.getvalue()).decode()
+
+def mel_to_image(mel_db):
+    """Spectrogram with magma colormap."""
+    norm = ((mel_db - mel_db.min()) / (mel_db.max() - mel_db.min() + 1e-8) * 255).astype(np.uint8)
+    colored = _MAGMA_LUT[norm[::-1, :]]
+    img = Image.fromarray(colored, mode='RGB').resize((672, 336), Image.LANCZOS)
+    return _img_to_b64(img)
+
+def waveform_to_image(y, width=672, height=140):
+    """Draw audio waveform as filled cyan line."""
+    img = Image.new('RGB', (width, height), '#f8fafc')
+    draw = ImageDraw.Draw(img)
+    # Normalize and downsample
+    y_norm = y / (np.max(np.abs(y)) + 1e-8)
+    step = max(1, len(y_norm) // width)
+    y_down = y_norm[::step][:width]
+    x_vals = np.arange(len(y_down))
+    # Map to pixel coords
+    cx = width / 2
+    cy = height / 2
+    scale_v = (height - 20) / 2
+    points = []
+    for i, v in enumerate(y_down):
+        px = int(3 + i * (width - 6) / max(len(y_down) - 1, 1))
+        py = int(cy - v * scale_v)
+        points.append((px, py))
+    if len(points) > 1:
+        # Draw fill
+        fill_pts = [(points[0][0], cy)] + points + [(points[-1][0], cy)]
+        draw.polygon(fill_pts, fill='#ccfbf1')
+        # Draw line
+        for i in range(len(points) - 1):
+            draw.line([points[i], points[i + 1]], fill='#0d9488', width=2)
+    # Center line
+    draw.line([(3, cy), (width - 3, cy)], fill='#e2e8f0', width=1)
+    return _img_to_b64(img)
+
+def freq_spectrum_to_image(mel_db, width=672, height=140):
+    """Average frequency spectrum as horizontal bar chart."""
+    img = Image.new('RGB', (width, height), '#f8fafc')
+    draw = ImageDraw.Draw(img)
+    # Average across time
+    profile = mel_db.mean(axis=1)  # (n_mels,)
+    if np.ptp(profile) > 0:
+        profile = (profile - profile.min()) / np.ptp(profile)
+    # Draw bars
+    n_bars = len(profile)
+    bar_w = max(1, (width - 20) // n_bars)
+    gap = max(1, bar_w // 4)
+    bar_w = max(1, bar_w - gap)
+    for i, v in enumerate(profile):
+        bar_h = int(v * (height - 24))
+        x = 10 + i * (bar_w + gap)
+        y_bottom = height - 12
+        y_top = y_bottom - bar_h
+        # Color from magma LUT
+        idx = min(int(v * 255), 255)
+        color = tuple(_MAGMA_LUT[idx].tolist())
+        draw.rectangle([x, y_top, x + bar_w, y_bottom], fill=color)
+    # Baseline
+    draw.line([(8, height - 12), (width - 8, height - 12)], fill='#e2e8f0', width=1)
+    return _img_to_b64(img)
+
+def mfcc_to_image(y, width=672, height=140):
+    """MFCC heatmap with magma colormap."""
+    mfcc = librosa.feature.mfcc(y=y, sr=SR, n_mfcc=13, n_fft=2048, hop_length=512)
+    target_w = width // 2  # reduce width to avoid tiny pixels
+    if mfcc.shape[1] != target_w:
+        zf = target_w / mfcc.shape[1]
+        mfcc = zoom(mfcc, (1, zf), order=1)
+    if np.ptp(mfcc) > 0:
+        norm = ((mfcc - mfcc.min()) / np.ptp(mfcc) * 255).astype(np.uint8)
+    else:
+        norm = np.zeros_like(mfcc, dtype=np.uint8)
+    colored = _MAGMA_LUT[255 - norm]  # invert: high energy = warm
+    img = Image.fromarray(colored, mode='RGB').resize((width, height), Image.LANCZOS)
+    return _img_to_b64(img)
 
 
 def predict(audio_bytes):
@@ -223,7 +296,10 @@ def predict(audio_bytes):
         "device": str(DEVICE),
         "model": "MobileNetV4_Res2TSM",
         "processing_time_ms": round((t2 - t0) * 1000, 1),
-        "spectrogram": mel_to_image(mel_db)
+        "spectrogram": mel_to_image(mel_db),
+        "waveform": waveform_to_image(y_seg),
+        "freq_spectrum": freq_spectrum_to_image(mel_db),
+        "mfcc": mfcc_to_image(y_seg)
     }
     del mel_db
     gc.collect()
