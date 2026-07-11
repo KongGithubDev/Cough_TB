@@ -410,7 +410,6 @@ const dropZone = document.getElementById('dropZone');
 const dragOverlay = document.getElementById('dragOverlay');
 const dashSvg = dropZone.querySelector('svg');
 
-let _isDragging = false;
 let _dragHideTimer = null;
 
 function showDragOverlay() { dragOverlay.classList.remove('hidden'); }
@@ -430,33 +429,33 @@ function deactivateDropZone() {
   dashSvg.classList.add('opacity-0');
 }
 
-// Document-level — show/hide full-page overlay
+// Document-level counter — prevents flicker when cursor moves between elements
+let _dragCounter = 0;
+
 document.addEventListener('dragenter', e => {
-  e.preventDefault();
+  _dragCounter++;
   clearTimeout(_dragHideTimer);
-  if (!_isDragging) {
-    _isDragging = true;
-    showDragOverlay();
-  }
+  if (_dragCounter === 1) showDragOverlay();
 });
+// Only dragover/drop need preventDefault to make page a valid drop target
 document.addEventListener('dragover', e => {
   e.preventDefault();
   if (dropZone.matches(':hover')) activateDropZone();
 });
 document.addEventListener('dragleave', e => {
-  e.preventDefault();
-  clearTimeout(_dragHideTimer);
-  _dragHideTimer = setTimeout(() => {
-    if (_isDragging) {
-      _isDragging = false;
+  _dragCounter--;
+  if (_dragCounter <= 0) {
+    _dragCounter = 0;
+    clearTimeout(_dragHideTimer);
+    _dragHideTimer = setTimeout(() => {
       hideDragOverlay();
       deactivateDropZone();
-    }
-  }, 80);
+    }, 200);
+  }
 });
 document.addEventListener('drop', e => {
   e.preventDefault();
-  _isDragging = false;
+  _dragCounter = 0;
   clearTimeout(_dragHideTimer);
   hideDragOverlay();
   deactivateDropZone();
@@ -464,17 +463,15 @@ document.addEventListener('drop', e => {
 
 // Drop zone — activate/deactivate zone styling
 dropZone.addEventListener('dragenter', e => {
-  e.preventDefault();
   activateDropZone();
 });
 dropZone.addEventListener('dragleave', e => {
-  e.preventDefault();
   if (!dropZone.contains(e.relatedTarget)) deactivateDropZone();
 });
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
   e.stopPropagation();
-  _isDragging = false;
+  _dragCounter = 0;
   clearTimeout(_dragHideTimer);
   hideDragOverlay();
   deactivateDropZone();
