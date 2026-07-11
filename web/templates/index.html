@@ -190,10 +190,10 @@ tailwind.config = {
     <div id="chartsSection" class="hidden">
       <!-- Chart tabs -->
       <div class="flex gap-1 bg-slate-100 rounded-lg p-0.5 mb-3">
-        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="spectrogram" data-active="true">Spectrogram</button>
-        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="waveform" data-active="false">Waveform</button>
-        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="freq" data-active="false">Freq Spectrum</button>
-        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium text-slate-500 transition-all" data-chart="mfcc" data-active="false">MFCC</button>
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium transition-all data-[active=true]:bg-white data-[active=true]:text-cyan-600 data-[active=true]:shadow-sm data-[active=false]:text-slate-500" data-chart="spectrogram" data-active="true">Spectrogram</button>
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium transition-all data-[active=true]:bg-white data-[active=true]:text-cyan-600 data-[active=true]:shadow-sm data-[active=false]:text-slate-500" data-chart="waveform" data-active="false">Waveform</button>
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium transition-all data-[active=true]:bg-white data-[active=true]:text-cyan-600 data-[active=true]:shadow-sm data-[active=false]:text-slate-500" data-chart="freq" data-active="false">Freq Spectrum</button>
+        <button class="chart-tab flex-1 text-center py-1.5 px-2 rounded-md text-xs font-medium transition-all data-[active=true]:bg-white data-[active=true]:text-cyan-600 data-[active=true]:shadow-sm data-[active=false]:text-slate-500" data-chart="mfcc" data-active="false">MFCC</button>
       </div>
       <!-- Chart images -->
       <div class="chart-view" data-chart="spectrogram">
@@ -546,6 +546,11 @@ function hideResult() {
   document.getElementById('resultCard').classList.add('hidden');
   document.getElementById('techContent').classList.add('hidden');
   document.getElementById('techChevron').style.transform = 'rotate(0deg)';
+  // Reset chart tabs to default
+  document.querySelectorAll('.chart-tab').forEach(b => b.dataset.active = 'false');
+  document.querySelector('.chart-tab[data-chart="spectrogram"]').dataset.active = 'true';
+  document.querySelectorAll('.chart-view').forEach(v => v.classList.add('hidden'));
+  document.querySelector('.chart-view[data-chart="spectrogram"]').classList.remove('hidden');
 }
 function hideError() { document.getElementById('errorMsg').classList.add('hidden'); }
 function showError(m) { document.getElementById('errorText').textContent = m; document.getElementById('errorMsg').classList.remove('hidden'); }
