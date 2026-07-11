@@ -22,8 +22,21 @@ tailwind.config = {
 @keyframes pulse-ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.3); } 50% { box-shadow: 0 0 0 18px rgba(220,38,38,0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes float-up { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes dash-flow { to { stroke-dashoffset: -20; } }
+@keyframes drop-ripple { 0% { box-shadow: 0 0 0 0 rgba(6,182,212,0.3); } 100% { box-shadow: 0 0 0 24px rgba(6,182,212,0); } }
 .pulse-ring { animation: pulse-ring 1.5s ease-in-out infinite; }
 .slide-up { animation: slide-up 0.35s ease-out; }
+.float-up { animation: float-up 1.8s ease-in-out infinite; }
+.drop-ripple { animation: drop-ripple 1s ease-out; }
+.drag-overlay { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+#dropZone { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+#dropZone.drag-active { transform: scale(1.02); }
+#dropZone .drop-icon { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+#dropZone.drag-active .drop-icon { transform: translateY(-4px) scale(1.1); }
+#dropZone .dash-border { stroke-dasharray: 8 4; animation: dash-flow 0.8s linear infinite; }
+#fileInfo { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
 </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-900 min-h-screen flex justify-center px-4 py-8 sm:py-12">
@@ -69,23 +82,60 @@ tailwind.config = {
     </div>
 
     <!-- Tab: Upload -->
-    <div id="tab-upload" class="hidden">
+    <div id="tab-upload" class="hidden relative">
       <div id="dropZone" onclick="document.getElementById('fileInput').click()"
-           class="border-2 border-dashed border-slate-300 rounded-xl py-9 px-6 text-center cursor-pointer transition-all hover:border-cyan-500 hover:bg-cyan-50">
-        <svg class="w-10 h-10 mx-auto text-slate-400 mb-2.5 transition-colors group-hover:text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <p class="text-sm font-medium text-slate-700">Choose an audio file or drag it here</p>
-        <p class="text-xs text-slate-400 mt-1">Drop a cough recording to analyze</p>
-        <p class="text-xs text-slate-300 mt-1.5">WAV · MP3 · FLAC · OGG · M4A</p>
+           class="relative overflow-hidden border-2 border-dashed border-slate-300 rounded-xl py-9 px-6 text-center cursor-pointer transition-all duration-300 hover:border-cyan-500 hover:bg-cyan-50/40">
+        <!-- Animated dashed border SVG -->
+        <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-0 transition-opacity duration-300" style="color:#06b6d4">
+          <rect x="1" y="1" width="calc(100% - 2)" height="calc(100% - 2)" rx="12" ry="12"
+                fill="none" stroke="currentColor" stroke-width="2" class="dash-border" />
+        </svg>
+        <!-- Icon container -->
+        <div class="relative">
+          <div class="drop-icon w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-100 border-2 border-slate-200 flex items-center justify-center transition-all duration-300">
+            <svg class="w-7 h-7 text-slate-400 transition-all duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+        </div>
+        <p class="text-sm font-medium text-slate-700" id="dropText">Choose an audio file or drag it here</p>
+        <p class="text-xs text-slate-400 mt-1" id="dropHint">Drop a cough recording to analyze</p>
+        <p class="text-xs text-slate-300 mt-1.5" id="dropFormats">WAV · MP3 · FLAC · OGG · M4A</p>
       </div>
       <input type="file" id="fileInput" accept="audio/*" class="hidden" onchange="onFileSelect(event)">
 
-      <div id="fileInfo" class="hidden items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 mt-3.5">
-        <svg class="w-4 h-4 text-cyan-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span class="text-sm font-medium text-slate-700 truncate flex-1" id="fileName"></span>
-        <span class="text-xs text-slate-400" id="fileSize"></span>
-        <button onclick="clearFile()" class="p-1 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors" aria-label="Clear file">
+      <div id="fileInfo" class="hidden items-center gap-2.5 p-3 bg-cyan-50/60 rounded-xl border border-cyan-200 mt-3.5 origin-top">
+        <div class="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-slate-700 truncate" id="fileName"></p>
+          <p class="text-xs text-slate-400" id="fileSize" style="margin-top:0"></p>
+        </div>
+        <button onclick="clearFile()" class="p-1.5 rounded-lg text-slate-400 hover:bg-cyan-100 hover:text-cyan-600 transition-all duration-200" aria-label="Clear file">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
+      </div>
+    </div>
+
+    <!-- Full-page drag overlay -->
+    <div id="dragOverlay" class="hidden fixed inset-0 z-50 drag-overlay bg-cyan-600/10 flex items-center justify-center">
+      <div class="bg-white rounded-3xl shadow-2xl border border-cyan-200 p-10 text-center slide-up">
+        <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-cyan-50 border-2 border-cyan-200 flex items-center justify-center float-up">
+          <svg class="w-10 h-10 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <p class="text-lg font-bold text-slate-800">Drop to analyze</p>
+        <p class="text-sm text-slate-400 mt-1">Release to upload your cough recording</p>
+        <div class="mt-4 flex items-center justify-center gap-2 text-xs text-cyan-600 font-medium">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Supports WAV &#183; MP3 &#183; FLAC &#183; OGG &#183; M4A
+        </div>
       </div>
     </div>
 
@@ -316,22 +366,136 @@ function setFile(f) {
   selectedFile = f; recordedBlob = null; hideResult(); hideError();
   document.getElementById('fileName').textContent = f.name;
   document.getElementById('fileSize').textContent = (f.size / 1024).toFixed(0) + ' KB';
-  document.getElementById('fileInfo').classList.remove('hidden');
+  const fi = document.getElementById('fileInfo');
+  fi.classList.remove('hidden');
+  fi.style.transform = 'scale(0.95)';
+  fi.style.opacity = '0';
+  requestAnimationFrame(() => {
+    fi.style.transform = 'scale(1)';
+    fi.style.opacity = '1';
+  });
+  // Update drop zone appearance
+  dropZone.classList.add('border-emerald-400', 'bg-emerald-50/30');
+  dropZone.classList.remove('border-slate-300');
+  document.getElementById('dropText').textContent = f.name;
+  document.getElementById('dropText').classList.add('text-emerald-700', 'font-semibold');
+  document.getElementById('dropText').classList.remove('text-slate-700');
+  document.getElementById('dropHint').textContent = 'Click to change or drag a different file';
+  document.getElementById('dropFormats').classList.add('hidden');
   updateAnalyzeBtn();
 }
 function clearFile() {
   selectedFile = null; hideResult(); hideError();
-  document.getElementById('fileInfo').classList.add('hidden');
+  const fi = document.getElementById('fileInfo');
+  fi.style.transform = 'scale(0.95)';
+  fi.style.opacity = '0';
+  setTimeout(() => {
+    fi.classList.add('hidden');
+    fi.style.transform = '';
+    fi.style.opacity = '';
+  }, 300);
   document.getElementById('fileInput').value = '';
+  // Restore drop zone appearance
+  dropZone.classList.remove('border-emerald-400', 'bg-emerald-50/30');
+  dropZone.classList.add('border-slate-300');
+  document.getElementById('dropText').textContent = 'Choose an audio file or drag it here';
+  document.getElementById('dropText').classList.remove('text-emerald-700', 'font-semibold');
+  document.getElementById('dropText').classList.add('text-slate-700');
+  document.getElementById('dropHint').textContent = 'Drop a cough recording to analyze';
+  document.getElementById('dropFormats').classList.remove('hidden');
   disableAnalyzeBtn();
 }
-document.getElementById('dropZone').addEventListener('dragover', e => { e.preventDefault(); e.currentTarget.classList.add('border-cyan-500','bg-cyan-50'); });
-document.getElementById('dropZone').addEventListener('dragleave', e => { e.currentTarget.classList.remove('border-cyan-500','bg-cyan-50'); });
-document.getElementById('dropZone').addEventListener('drop', e => {
+/* ── Drag & Drop with Overlay ── */
+const dropZone = document.getElementById('dropZone');
+const dragOverlay = document.getElementById('dragOverlay');
+const dashSvg = dropZone.querySelector('svg');
+
+// Track drag count for proper nested dragenter/dragleave handling
+let _dragCount = 0;
+
+function showDragOverlay() {
+  dragOverlay.classList.remove('hidden');
+}
+
+function hideDragOverlay() {
+  dragOverlay.classList.add('hidden');
+}
+
+function activateDropZone() {
+  dropZone.classList.add('drag-active', 'border-cyan-500', 'bg-cyan-50/40');
+  dropZone.classList.remove('border-slate-300');
+  dashSvg.classList.remove('opacity-0');
+  dashSvg.classList.add('opacity-100');
+}
+
+function deactivateDropZone() {
+  dropZone.classList.remove('drag-active', 'border-cyan-500', 'bg-cyan-50/40');
+  dropZone.classList.add('border-slate-300');
+  dashSvg.classList.remove('opacity-100');
+  dashSvg.classList.add('opacity-0');
+}
+
+// Document-level drag listeners for overlay
+document.addEventListener('dragenter', e => {
   e.preventDefault();
-  e.currentTarget.classList.remove('border-cyan-500','bg-cyan-50');
+  _dragCount++;
+  if (_dragCount === 1) showDragOverlay();
+});
+document.addEventListener('dragover', e => {
+  e.preventDefault();
+  // Also activate the drop zone if hovering over it
+  if (dropZone.matches(':hover')) {
+    activateDropZone();
+  }
+});
+document.addEventListener('dragleave', e => {
+  e.preventDefault();
+  _dragCount--;
+  if (_dragCount <= 0) {
+    _dragCount = 0;
+    hideDragOverlay();
+    deactivateDropZone();
+  }
+});
+
+// Drop zone specific listeners
+dropZone.addEventListener('dragenter', e => {
+  e.stopPropagation();
+  activateDropZone();
+});
+dropZone.addEventListener('dragleave', e => {
+  // Only deactivate if actually leaving the drop zone
+  if (!dropZone.contains(e.relatedTarget)) {
+    deactivateDropZone();
+  }
+});
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  _dragCount = 0;
+  hideDragOverlay();
+  deactivateDropZone();
   const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('audio/')) setFile(f);
+  if (f && f.type.startsWith('audio/')) {
+    setFile(f);
+    // Add ripple effect
+    dropZone.classList.add('drop-ripple');
+    setTimeout(() => dropZone.classList.remove('drop-ripple'), 1000);
+  } else {
+    // Show invalid file shake
+    dropZone.classList.add('border-red-400', 'bg-red-50/40');
+    setTimeout(() => {
+      dropZone.classList.remove('border-red-400', 'bg-red-50/40');
+      dropZone.classList.add('border-slate-300');
+    }, 800);
+  }
+});
+
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  _dragCount = 0;
+  hideDragOverlay();
+  deactivateDropZone();
 });
 
 /* ── WebM → WAV ── */
