@@ -21,7 +21,7 @@
 #>
 
 param(
-    [int]$Port = 80,
+    [int]$Port = 3003,
     [switch]$InstallDeps,
     [switch]$InstallService,
     [switch]$UninstallService
