@@ -1,4 +1,4 @@
-import os, io, base64, gc, subprocess, tempfile
+import os, io, base64, gc, subprocess, tempfile, time
 import numpy as np
 import librosa
 import torch
@@ -197,13 +197,17 @@ def mel_to_image(mel_db):
 
 
 def predict(audio_bytes):
+    t0 = time.perf_counter()
     y_seg = load_and_segment(audio_bytes)
     if y_seg is None:
         return {"error": "Cannot process audio"}
+    audio_duration = len(y_seg) / SR
     mel_db, mel_rgb = make_mel_rgb(y_seg)
+    t1 = time.perf_counter()
     with torch.no_grad():
         input_tensor = torch.from_numpy(mel_rgb).float().unsqueeze(0).to(DEVICE)
         prob = model(input_tensor).cpu().numpy()[0]
+    t2 = time.perf_counter()
     # Clean up large tensors immediately
     del input_tensor, mel_rgb
     gc.collect()
@@ -213,6 +217,12 @@ def predict(audio_bytes):
         "is_tb": is_tb,
         "confidence_tb": float(prob) if is_tb else float(1 - prob),
         "label": "TB Detected" if is_tb else "No TB Detected",
+        "threshold": 0.5,
+        "audio_duration_sec": round(audio_duration, 2),
+        "sample_rate": SR,
+        "device": str(DEVICE),
+        "model": "MobileNetV4_Res2TSM",
+        "processing_time_ms": round((t2 - t0) * 1000, 1),
         "spectrogram": mel_to_image(mel_db)
     }
     del mel_db
