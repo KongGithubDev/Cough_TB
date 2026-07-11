@@ -383,6 +383,8 @@ async function analyze() {
     completeProgress();
     showResult(data);
   } catch (e) {
+    _progressTimers.forEach(t => clearTimeout(t));
+    _progressTimers = [];
     showError(e.message);
   }
   setTimeout(() => {
