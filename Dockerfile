@@ -9,13 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (Docker layer caching)
-COPY requirements.txt .
+COPY web/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code, model, and templates
-COPY app.py .
-COPY model.pth .
-COPY templates/ ./templates/
+COPY web/app.py .
+COPY web/model.pth .
+COPY web/templates/ ./templates/
 
 # Render sets PORT env var (default 10000)
 ENV PORT=10000

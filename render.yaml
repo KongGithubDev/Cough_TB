@@ -4,8 +4,8 @@ services:
     runtime: docker
     repo: https://github.com/KongGithubDev/Cough_TB.git
     branch: main
-    dockerfilePath: web/Dockerfile
-    dockerContext: web
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
     autoDeploy: true
     healthCheckPath: /health
