@@ -1,205 +1,557 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CoughTB — TB Screening from Cough</title>
+<title>CoughTB — AI Tuberculosis Screening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-    min-height: 100vh; color: #fff; display: flex; justify-content: center; align-items: center; padding: 20px;
-  }
-  .container { max-width: 640px; width: 100%; background: rgba(255,255,255,0.06); border-radius: 24px; padding: 36px; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-  h1 { font-size: 28px; text-align: center; margin-bottom: 4px; letter-spacing: -0.5px; }
-  .subtitle { text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin-bottom: 28px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
-  .tab { flex: 1; text-align: center; padding: 10px; border-radius: 12px; cursor: pointer; background: rgba(255,255,255,0.06); transition: 0.2s; font-weight: 500; font-size: 14px; }
-  .tab.active { background: rgba(99,102,241,0.3); border: 1px solid rgba(99,102,241,0.5); }
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
-  .upload-area {
-    border: 2px dashed rgba(255,255,255,0.2); border-radius: 16px; padding: 32px; text-align: center; cursor: pointer; transition: 0.2s;
-    background: rgba(255,255,255,0.03);
-  }
-  .upload-area:hover { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.06); }
-  .upload-area.dragover { border-color: #6366f1; background: rgba(99,102,241,0.1); }
-  .upload-area svg { width: 48px; height: 48px; stroke: rgba(255,255,255,0.4); margin-bottom: 12px; }
-  .upload-area p { color: rgba(255,255,255,0.6); font-size: 14px; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: 12px; border: none; cursor: pointer;
-    font-size: 15px; font-weight: 600; transition: 0.2s;
-  }
-  .btn-primary { background: #6366f1; color: #fff; }
-  .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
-  .btn-primary:disabled { background: #4b5563; cursor: not-allowed; transform: none; }
-  .btn-danger { background: #ef4444; color: #fff; }
-  .btn-danger:hover { background: #dc2626; }
-  .btn-success { background: #22c55e; color: #fff; }
-  .btn-success:hover { background: #16a34a; }
-  .recorder-controls { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; }
-  .record-status { text-align: center; color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 16px; }
-  .recording-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ef4444; margin-right: 6px; animation: pulse 1s infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-  #filename { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-top: 8px; }
-  .result-card { display: none; margin-top: 24px; padding: 24px; border-radius: 16px; text-align: center; }
-  .result-card.show { display: block; }
-  .result-card.tb { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); }
-  .result-card.no-tb { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); }
-  .result-label { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-  .result-prob { font-size: 36px; font-weight: 800; margin-bottom: 4px; }
-  .result-sub { font-size: 13px; color: rgba(255,255,255,0.5); }
-  .result-detail { margin-top: 16px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-  .detail-item { padding: 8px 16px; background: rgba(255,255,255,0.06); border-radius: 8px; font-size: 13px; }
-  .detail-item strong { display: block; font-size: 18px; margin-bottom: 2px; }
-  .spectrogram { margin-top: 16px; }
-  .spectrogram img { max-width: 100%; border-radius: 8px; }
-  .spinner { display: none; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; margin: 0 auto 12px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .footer { text-align: center; color: rgba(255,255,255,0.25); font-size: 12px; margin-top: 24px; }
-  .error-msg { color: #ef4444; font-size: 13px; text-align: center; margin-top: 8px; display: none; }
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f1f5f9;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 32px 16px;
+  color: #0f172a;
+  line-height: 1.6;
+}
+
+/* ── Container ── */
+.container {
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #0891b2, #0e7490);
+  border-radius: 14px;
+  margin-bottom: 12px;
+}
+.header-icon svg { width: 26px; height: 26px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #0f172a;
+}
+.header p {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* ── Card ── */
+.card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  padding: 28px 24px;
+  border: 1px solid #e2e8f0;
+}
+.card + .card { margin-top: 16px; }
+
+/* ── Tabs ── */
+.tab-group {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 3px;
+  margin-bottom: 24px;
+}
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.tab-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tab-btn.active {
+  background: #ffffff;
+  color: #0891b2;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-weight: 600;
+}
+.tab-btn:not(.active):hover { color: #334155; }
+
+/* ── Tab Content ── */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Upload Area ── */
+.upload-zone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 36px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fafbfc;
+}
+.upload-zone:hover { border-color: #0891b2; background: #f0f9ff; }
+.upload-zone.dragover { border-color: #0891b2; background: #ecfeff; border-style: solid; }
+.upload-zone svg {
+  width: 40px; height: 40px;
+  stroke: #94a3b8;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  margin-bottom: 10px;
+  transition: stroke 0.2s;
+}
+.upload-zone:hover svg { stroke: #0891b2; }
+.upload-zone .label { font-size: 14px; font-weight: 500; color: #334155; }
+.upload-zone .hint { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+.upload-zone .formats { font-size: 11px; color: #cbd5e1; margin-top: 6px; }
+
+/* ── Record Section ── */
+.record-area {
+  text-align: center;
+  padding: 8px 0;
+}
+.record-visual {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid #e2e8f0;
+}
+.record-visual:hover { border-color: #0891b2; background: #f0f9ff; }
+.record-visual.recording {
+  border-color: #dc2626;
+  background: #fef2f2;
+  animation: record-pulse 1.5s ease-in-out infinite;
+}
+@keyframes record-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.3); }
+  50% { box-shadow: 0 0 0 16px rgba(220,38,38,0); }
+}
+.record-visual svg { width: 32px; height: 32px; stroke: #64748b; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.3s; }
+.record-visual.recording svg { stroke: #dc2626; }
+.record-status { font-size: 13px; color: #64748b; margin-bottom: 4px; }
+.record-timer { font-size: 28px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; display: none; }
+.record-timer.visible { display: block; }
+
+/* ── File Info ── */
+.file-info {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 10px;
+  margin-top: 14px;
+  border: 1px solid #e2e8f0;
+}
+.file-info.visible { display: flex; }
+.file-info svg { width: 18px; height: 18px; stroke: #0891b2; fill: none; stroke-width: 2; flex-shrink: 0; }
+.file-info .name { font-size: 13px; font-weight: 500; color: #334155; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-info .size { font-size: 11px; color: #94a3b8; }
+.file-info .clear-btn {
+  background: none; border: none; cursor: pointer; padding: 4px; border-radius: 6px; color: #94a3b8; transition: 0.15s;
+}
+.file-info .clear-btn:hover { background: #f1f5f9; color: #64748b; }
+.file-info .clear-btn svg { width: 16px; height: 16px; stroke: currentColor; }
+
+/* ── Analyze Button ── */
+.analyze-section { margin-top: 20px; }
+.analyze-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0891b2, #0e7490);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.analyze-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.analyze-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(8,145,178,0.3); }
+.analyze-btn:active:not(:disabled) { transform: translateY(0); }
+.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #94a3b8; }
+
+/* ── Spinner ── */
+.spinner-wrap { display: none; text-align: center; margin-top: 20px; }
+.spinner-wrap.visible { display: block; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0891b2;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-text { font-size: 13px; color: #64748b; }
+
+/* ── Result ── */
+.result { display: none; }
+.result.visible { display: block; animation: slide-up 0.35s ease-out; }
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Status badge */
+.result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.result-badge svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+.result-badge.positive { background: #fef2f2; color: #dc2626; }
+.result-badge.negative { background: #f0fdf4; color: #059669; }
+
+/* Gauge ring */
+.gauge-wrap { text-align: center; margin-bottom: 16px; }
+.gauge-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.gauge-ring svg { transform: rotate(-90deg); }
+.gauge-ring .bg { fill: none; stroke: #f1f5f9; stroke-width: 8; }
+.gauge-ring .progress {
+  fill: none;
+  stroke: #0891b2;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease;
+}
+.gauge-ring .progress.high { stroke: #dc2626; }
+.gauge-ring .progress.mid { stroke: #f59e0b; }
+.gauge-ring .progress.low { stroke: #059669; }
+.gauge-value {
+  position: absolute;
+  font-size: 32px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -1px;
+}
+.gauge-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* Detail grid */
+.result-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.detail-item {
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  text-align: center;
+  border: 1px solid #f1f5f9;
+}
+.detail-item .val {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.detail-item .lbl {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Confidence bar */
+.confidence-section { margin-bottom: 16px; }
+.confidence-section .lbl {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.confidence-bar {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.confidence-bar .fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.confidence-bar .fill.high { background: #dc2626; }
+.confidence-bar .fill.mid { background: #f59e0b; }
+.confidence-bar .fill.low { background: #059669; }
+
+/* Spectrogram */
+.spectrogram-section { margin-top: 16px; }
+.spectrogram-section .lbl {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.spectrogram-section img {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── Error ── */
+.error-msg {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #dc2626;
+}
+.error-msg.visible { display: flex; }
+.error-msg svg { width: 16px; height: 16px; stroke: #dc2626; fill: none; stroke-width: 2; flex-shrink: 0; }
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  padding: 20px 0 8px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.footer a { color: #0891b2; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  body { padding: 16px 12px; }
+  .card { padding: 20px 16px; border-radius: 16px; }
+  .header h1 { font-size: 20px; }
+  .gauge-value { font-size: 28px; }
+  .result-details { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .upload-zone { padding: 24px 16px; }
+}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>CoughTB</h1>
-  <p class="subtitle">AI-powered TB screening from cough sounds</p>
 
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('record')">Record</div>
-    <div class="tab" onclick="switchTab('upload')">Upload File</div>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+    <h1>CoughTB</h1>
+    <p>AI-powered tuberculosis screening from cough sounds</p>
   </div>
 
-  <div id="tab-record" class="tab-content active">
-    <div class="recorder-controls">
-      <button class="btn btn-danger" id="recordBtn" onclick="toggleRecording()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/></svg>
+  <!-- Main Card -->
+  <div class="card">
+
+    <!-- Tabs -->
+    <div class="tab-group">
+      <button class="tab-btn active" onclick="switchTab('record')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 2v3m0 14v3m10-10h-3M5 12H2"/></svg>
         Record
       </button>
+      <button class="tab-btn" onclick="switchTab('upload')">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload File
+      </button>
     </div>
-    <div class="record-status" id="recordStatus">Press Record, then cough</div>
-  </div>
 
-  <div id="tab-upload" class="tab-content">
-    <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <p>Drop audio file here or click to browse</p>
-      <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:4px">Supports .wav, .mp3, .flac, .ogg, .m4a</p>
+    <!-- Tab: Record -->
+    <div id="tab-record" class="tab-content active">
+      <div class="record-area">
+        <div class="record-visual" id="recordBtn" onclick="toggleRecording()">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
+        </div>
+        <div class="record-status" id="recordStatus">Tap to start recording</div>
+        <div class="record-timer" id="recordTimer">00:00</div>
+      </div>
     </div>
-    <input type="file" id="fileInput" accept="audio/*" style="display:none" onchange="onFileSelect(event)">
-    <div id="filename"></div>
+
+    <!-- Tab: Upload -->
+    <div id="tab-upload" class="tab-content">
+      <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="label">Choose an audio file or drag it here</div>
+        <div class="hint">Drop a cough recording to analyze</div>
+        <div class="formats">WAV &middot; MP3 &middot; FLAC &middot; OGG &middot; M4A</div>
+      </div>
+      <input type="file" id="fileInput" accept="audio/*" style="display:none" onchange="onFileSelect(event)">
+
+      <div class="file-info" id="fileInfo">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span class="name" id="fileName"></span>
+        <span class="size" id="fileSize"></span>
+        <button class="clear-btn" onclick="clearFile()" aria-label="Clear file">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Analyze Button -->
+    <div class="analyze-section">
+      <button class="analyze-btn" id="predictBtn" onclick="analyze()" disabled>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Analyze Cough
+      </button>
+    </div>
+
+    <!-- Spinner -->
+    <div class="spinner-wrap" id="spinner">
+      <div class="spinner"></div>
+      <div class="spinner-text">Analyzing cough sound...</div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-msg" id="errorMsg">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errorText"></span>
+    </div>
+
   </div>
 
-  <div style="text-align:center;margin-top:16px">
-    <button class="btn btn-primary" id="predictBtn" onclick="predict()" disabled>
-      Analyze Cough
-    </button>
-  </div>
-  <div class="spinner" id="spinner"></div>
-  <div class="error-msg" id="errorMsg"></div>
+  <!-- Result Card -->
+  <div class="card result" id="resultCard">
+    <div class="result-badge" id="resultBadge">
+      <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span id="resultLabel"></span>
+    </div>
 
-  <div class="result-card" id="resultCard">
-    <div class="result-label" id="resultLabel"></div>
-    <div class="result-prob" id="resultProb"></div>
-    <div class="result-sub" id="resultSub"></div>
-    <div class="result-detail" id="resultDetail"></div>
-    <div class="spectrogram" id="spectrogram"></div>
+    <div class="gauge-wrap">
+      <div class="gauge-ring">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle class="bg" cx="70" cy="70" r="58"/>
+          <circle class="progress" id="gaugeProgress" cx="70" cy="70" r="58"
+                  stroke-dasharray="364.4" stroke-dashoffset="364.4"/>
+        </svg>
+        <div class="gauge-value" id="resultProb">0%</div>
+      </div>
+      <div class="gauge-label">TB Probability</div>
+    </div>
+
+    <div class="result-details">
+      <div class="detail-item">
+        <div class="val" id="detailProb">0%</div>
+        <div class="lbl">TB Probability</div>
+      </div>
+      <div class="detail-item">
+        <div class="val" id="detailConf">0%</div>
+        <div class="lbl">Confidence</div>
+      </div>
+    </div>
+
+    <div class="confidence-section">
+      <div class="lbl">
+        <span>Confidence</span>
+        <span id="confLabel">0%</span>
+      </div>
+      <div class="confidence-bar">
+        <div class="fill" id="confBar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="spectrogram-section" id="spectrogramSection" style="display:none">
+      <div class="lbl">Cough Spectrogram</div>
+      <img id="spectrogramImg" alt="Cough spectrogram">
+    </div>
+
+    <div style="margin-top:14px;font-size:12px;color:#94a3b8;text-align:center">
+      For screening purposes only &middot; Not a medical device
+    </div>
   </div>
 
-  <div class="footer">For screening purposes only &middot; Not a medical device</div>
+  <!-- Footer -->
+  <div class="footer">
+    CoughTB v1.0 &middot; <a href="/health" target="_blank">Health Check</a>
+  </div>
 </div>
 
 <script>
+/* ── State ── */
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
 let recordedBlob = null;
 let selectedFile = null;
+let recordingStartTime = null;
+let timerInterval = null;
 
+/* ── Tab Switching ── */
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   if (tab === 'record') {
-    document.querySelector('.tab:nth-child(1)').classList.add('active');
+    document.querySelectorAll('.tab-btn')[0].classList.add('active');
     document.getElementById('tab-record').classList.add('active');
   } else {
-    document.querySelector('.tab:nth-child(2)').classList.add('active');
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
     document.getElementById('tab-upload').classList.add('active');
   }
-  document.getElementById('resultCard').classList.remove('show');
-  document.getElementById('errorMsg').style.display = 'none';
+  hideResult();
+  hideError();
 }
 
-/* ---- Convert WebM blob to WAV (client side, no ffmpeg needed) ---- */
-function webmToWav(webmBlob) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Decode WebM bytes → AudioBuffer via Web Audio API
-      const arrayBuffer = await webmBlob.arrayBuffer();
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      audioCtx.close();
-
-      // Get PCM data (mono, 16-bit)
-      const numChannels = 1;         // force mono
-      const sampleRate = audioBuffer.sampleRate;
-      const srcData = audioBuffer.getChannelData(0); // float32 [-1, 1]
-      const numSamples = srcData.length;
-
-      // Build WAV header + data
-      const bytesPerSample = 2;      // 16-bit
-      const blockAlign = numChannels * bytesPerSample;
-      const byteRate = sampleRate * blockAlign;
-      const dataSize = numSamples * blockAlign;
-      const bufferSize = 44 + dataSize; // header(44) + data
-
-      const wavBuffer = new ArrayBuffer(bufferSize);
-      const view = new DataView(wavBuffer);
-
-      function writeString(offset, str) {
-        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-      }
-
-      writeString(0, 'RIFF');
-      view.setUint32(4, 36 + dataSize, true);
-      writeString(8, 'WAVE');
-      writeString(12, 'fmt ');
-      view.setUint32(16, 16, true);        // chunk size
-      view.setUint16(20, 1, true);         // PCM
-      view.setUint16(22, numChannels, true);
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, byteRate, true);
-      view.setUint16(32, blockAlign, true);
-      view.setUint16(34, bytesPerSample * 8, true);
-      writeString(36, 'data');
-      view.setUint32(40, dataSize, true);
-
-      let offset = 44;
-      for (let i = 0; i < numSamples; i++) {
-        const sample = Math.max(-1, Math.min(1, srcData[i]));
-        const val = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-        view.setInt16(offset, val, true);
-        offset += 2;
-      }
-
-      const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-      resolve(wavBlob);
-    } catch (e) {
-      reject(e);
-    }
-  });
-}
-
+/* ── Recording ── */
 async function toggleRecording() {
   if (isRecording) {
     mediaRecorder.stop();
     return;
   }
-  if (!navigator.mediaDevices) {
-    showError('Microphone not available');
-    return;
-  }
+  if (!navigator.mediaDevices) { showError('Microphone not available or blocked'); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
@@ -208,29 +560,60 @@ async function toggleRecording() {
     mediaRecorder.onstop = () => {
       stream.getTracks().forEach(t => t.stop());
       recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      document.getElementById('recordStatus').innerHTML = 'Recording saved (' + (recordedBlob.size/1024).toFixed(0) + ' KB)';
-      document.getElementById('predictBtn').disabled = false;
+      document.getElementById('recordStatus').textContent = 'Recording saved — ' + (recordedBlob.size / 1024).toFixed(0) + ' KB';
+      updateAnalyzeBtn();
       selectedFile = null;
+      clearInterval(timerInterval);
+      document.getElementById('recordTimer').classList.remove('visible');
     };
     mediaRecorder.start();
     isRecording = true;
-    document.getElementById('recordBtn').innerHTML = '<span class="recording-dot"></span> Stop';
-    document.getElementById('recordBtn').className = 'btn btn-danger';
-    document.getElementById('recordStatus').innerHTML = '<span class="recording-dot"></span> Recording... Cough now!';
-    document.getElementById('predictBtn').disabled = true;
+    recordingStartTime = Date.now();
+    document.getElementById('recordBtn').classList.add('recording');
+    document.getElementById('recordStatus').textContent = 'Recording... Cough now!';
+    document.getElementById('recordTimer').classList.add('visible');
+    document.getElementById('recordTimer').textContent = '00:00';
+    timerInterval = setInterval(updateTimer, 100);
+    disableAnalyzeBtn();
+    selectedFile = null;
   } catch (e) {
-    showError('Microphone access denied');
+    showError('Microphone access denied. Check browser permissions.');
   }
 }
 
-function onFileSelect(event) {
-  selectedFile = event.target.files[0];
-  if (!selectedFile) return;
-  document.getElementById('filename').textContent = selectedFile.name + ' (' + (selectedFile.size/1024).toFixed(0) + ' KB)';
-  document.getElementById('predictBtn').disabled = false;
-  recordedBlob = null;
+function updateTimer() {
+  const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  document.getElementById('recordTimer').textContent = m + ':' + s;
 }
 
+/* ── File Upload ── */
+function onFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  setFile(file);
+}
+
+function setFile(file) {
+  selectedFile = file;
+  recordedBlob = null;
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(0) + ' KB';
+  document.getElementById('fileInfo').classList.add('visible');
+  hideResult();
+  hideError();
+  updateAnalyzeBtn();
+}
+
+function clearFile() {
+  selectedFile = null;
+  document.getElementById('fileInfo').classList.remove('visible');
+  document.getElementById('fileInput').value = '';
+  disableAnalyzeBtn();
+}
+
+/* Drop Zone */
 const dropZone = document.getElementById('dropZone');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -238,81 +621,152 @@ dropZone.addEventListener('drop', e => {
   e.preventDefault();
   dropZone.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('audio/')) {
-    selectedFile = file;
-    document.getElementById('filename').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)';
-    document.getElementById('predictBtn').disabled = false;
-    recordedBlob = null;
-  }
+  if (file && file.type.startsWith('audio/')) setFile(file);
 });
 
-async function predict() {
-  const card = document.getElementById('resultCard');
-  card.classList.remove('show');
-  document.getElementById('errorMsg').style.display = 'none';
-  document.getElementById('spinner').style.display = 'block';
+/* ── WebM → WAV ── */
+function webmToWav(webmBlob) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const arrayBuffer = await webmBlob.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      audioCtx.close();
+      const numChannels = 1;
+      const sampleRate = audioBuffer.sampleRate;
+      const srcData = audioBuffer.getChannelData(0);
+      const numSamples = srcData.length;
+      const bytesPerSample = 2;
+      const blockAlign = numChannels * bytesPerSample;
+      const byteRate = sampleRate * blockAlign;
+      const dataSize = numSamples * blockAlign;
+      const bufferSize = 44 + dataSize;
+      const wavBuffer = new ArrayBuffer(bufferSize);
+      const view = new DataView(wavBuffer);
+      function writeStr(offset, str) { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bytesPerSample * 8, true);
+      writeStr(36, 'data');
+      view.setUint32(40, dataSize, true);
+      let offset = 44;
+      for (let i = 0; i < numSamples; i++) {
+        const s = Math.max(-1, Math.min(1, srcData[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+      resolve(new Blob([wavBuffer], { type: 'audio/wav' }));
+    } catch (e) { reject(e); }
+  });
+}
+
+/* ── Buttons ── */
+function disableAnalyzeBtn() {
+  document.getElementById('predictBtn').disabled = true;
+}
+function updateAnalyzeBtn() {
+  document.getElementById('predictBtn').disabled = !(recordedBlob || selectedFile);
+}
+
+/* ── Analyze ── */
+async function analyze() {
+  hideResult();
+  hideError();
+  document.getElementById('spinner').classList.add('visible');
   document.getElementById('predictBtn').disabled = true;
 
-  let formData = new FormData();
-  if (recordedBlob) {
-    // Convert WebM → WAV on the client so server never needs ffmpeg
-    try {
+  const formData = new FormData();
+  try {
+    if (recordedBlob) {
       const wavBlob = await webmToWav(recordedBlob);
       formData.append('file', wavBlob, 'recording.wav');
-    } catch (e) {
-      showError('Could not convert recording: ' + e.message);
-      document.getElementById('spinner').style.display = 'none';
-      document.getElementById('predictBtn').disabled = false;
+    } else if (selectedFile) {
+      formData.append('file', selectedFile);
+    } else {
+      showError('No audio selected');
+      document.getElementById('spinner').classList.remove('visible');
+      updateAnalyzeBtn();
       return;
     }
-  } else if (selectedFile) {
-    formData.append('file', selectedFile);
-  } else {
-    showError('No audio to analyze');
-    document.getElementById('spinner').style.display = 'none';
-    document.getElementById('predictBtn').disabled = false;
+  } catch (e) {
+    showError('Could not process recording: ' + e.message);
+    document.getElementById('spinner').classList.remove('visible');
+    updateAnalyzeBtn();
     return;
   }
 
   try {
     const res = await fetch('/predict', { method: 'POST', body: formData });
-    if (!res.ok) throw new Error('Server error');
+    if (!res.ok) throw new Error(res.status === 422 ? 'Could not analyze audio — try a clearer recording' : 'Server error');
     const data = await res.json();
     showResult(data);
   } catch (e) {
-    showError('Prediction failed: ' + e.message);
+    showError(e.message);
   }
-  document.getElementById('spinner').style.display = 'none';
-  document.getElementById('predictBtn').disabled = false;
+  document.getElementById('spinner').classList.remove('visible');
+  updateAnalyzeBtn();
 }
 
+/* ── Display Result ── */
 function showResult(data) {
-  const card = document.getElementById('resultCard');
-  const label = document.getElementById('resultLabel');
-  const prob = document.getElementById('resultProb');
-  const sub = document.getElementById('resultSub');
-  const detail = document.getElementById('resultDetail');
-  const spec = document.getElementById('spectrogram');
+  const prob = data.tb_probability * 100;
+  const isTb = data.is_tb;
 
-  card.className = 'result-card show ' + (data.is_tb ? 'tb' : 'no-tb');
-  label.textContent = data.is_tb ? 'TB Detected' : 'No TB Detected';
-  prob.textContent = (data.tb_probability * 100).toFixed(1) + '%';
-  sub.textContent = data.is_tb ? 'Suggests TB — consult a healthcare professional' : 'No TB signature detected';
+  // Badge
+  const badge = document.getElementById('resultBadge');
+  badge.className = 'result-badge ' + (isTb ? 'positive' : 'negative');
+  document.getElementById('resultLabel').textContent = isTb ? 'TB Detected' : 'No TB Detected';
 
-  detail.innerHTML = `
-    <div class="detail-item">TB Probability <strong>${(data.tb_probability*100).toFixed(1)}%</strong></div>
-    <div class="detail-item">Confidence <strong>${(data.confidence_tb*100).toFixed(1)}%</strong></div>
-  `;
+  // Gauge ring
+  const circumference = 364.4;
+  const offset = circumference - (prob / 100) * circumference;
+  const progress = document.getElementById('gaugeProgress');
+  progress.style.strokeDashoffset = offset;
+  progress.className = 'progress ' + (prob >= 70 ? 'high' : prob >= 40 ? 'mid' : 'low');
+  document.getElementById('resultProb').textContent = prob.toFixed(0) + '%';
 
+  // Details
+  document.getElementById('detailProb').textContent = prob.toFixed(1) + '%';
+  document.getElementById('detailConf').textContent = (data.confidence_tb * 100).toFixed(1) + '%';
+
+  // Confidence bar
+  const confPct = data.confidence_tb * 100;
+  document.getElementById('confLabel').textContent = confPct.toFixed(0) + '%';
+  const confBar = document.getElementById('confBar');
+  confBar.style.width = confPct + '%';
+  confBar.className = 'fill ' + (prob >= 70 ? 'high' : prob >= 40 ? 'mid' : 'low');
+
+  // Spectrogram
+  const specSection = document.getElementById('spectrogramSection');
   if (data.spectrogram) {
-    spec.innerHTML = '<img src="data:image/png;base64,' + data.spectrogram + '" alt="Spectrogram">';
+    document.getElementById('spectrogramImg').src = 'data:image/png;base64,' + data.spectrogram;
+    specSection.style.display = 'block';
+  } else {
+    specSection.style.display = 'none';
   }
+
+  document.getElementById('resultCard').classList.add('visible');
 }
 
+function hideResult() {
+  document.getElementById('resultCard').classList.remove('visible');
+}
+
+/* ── Error ── */
 function showError(msg) {
-  const el = document.getElementById('errorMsg');
-  el.textContent = msg;
-  el.style.display = 'block';
+  document.getElementById('errorText').textContent = msg;
+  document.getElementById('errorMsg').classList.add('visible');
+}
+function hideError() {
+  document.getElementById('errorMsg').classList.remove('visible');
 }
 </script>
 </body>

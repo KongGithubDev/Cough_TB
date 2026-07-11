@@ -130,24 +130,7 @@ Write-Host "  Installing Python dependencies..." -ForegroundColor Gray
 & $pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet
 Write-Host "  ✓ All dependencies installed" -ForegroundColor Green
 
-# ---- Step 4: Firewall rule ----
-Write-Host "[4/4] Opening firewall port $Port..." -ForegroundColor Yellow
-try {
-    $ruleName = "CoughTB Port $Port"
-    $existing = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
-    if (-not $existing) {
-        New-NetFirewallRule -DisplayName $ruleName `
-            -Direction Inbound -Protocol TCP -LocalPort $Port `
-            -Action Allow -Profile Any | Out-Null
-        Write-Host "  ✓ Firewall rule added for port $Port" -ForegroundColor Green
-    } else {
-        Write-Host "  ✓ Firewall rule already exists" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "  ⚠ Could not add firewall rule (run as Admin)" -ForegroundColor Yellow
-}
-
-# ---- Step 5: Install as Windows service (via NSSM) ----
+# ---- Step 4: Install as Windows service (via NSSM) ----
 if ($InstallService) {
     Write-Host "[5/5] Installing as Windows service '$ServiceName'..." -ForegroundColor Yellow
     
