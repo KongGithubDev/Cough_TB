@@ -45,7 +45,7 @@ CoughTB/
 
 ## Quick Start
 
-### Web App (Local)
+### Web App (Local / VPS)
 
 ```bash
 cd web
@@ -53,6 +53,16 @@ pip install -r requirements.txt
 python app.py
 # → http://localhost:8000
 ```
+
+> On a Windows VPS with 10GB+ RAM (e.g., Ryzen 5950X):
+> ```powershell
+> cd web
+> pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+> pip install -r requirements.txt
+> $env:PORT=3003; python app.py
+> # → http://localhost:3003
+> ```
+> The app uses `OMP_NUM_THREADS` env var — set to `4` for faster CPU inference.
 
 ### Web App (Colab)
 
