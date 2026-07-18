@@ -51,6 +51,10 @@ CoughTB closes that gap: a lightweight architecture (6.6M parameters) that
 matches the pooled accuracy of prior work while being 4–20× smaller and
 suitable for on-device inference.
 
+<p align="center">
+  <img src="preview.png" alt="CoughTB web app preview" width="720">
+</p>
+
 ---
 
 ## Why CoughTB
