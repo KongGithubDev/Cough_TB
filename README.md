@@ -479,10 +479,6 @@ Detecting Tuberculosis Using Cough Sounds.* **SSRN** 5242653, 2025.
 | Pre-computation pipeline (10× faster training) | ✅ |
 | Colab inference notebook | ✅ |
 | Web app (FastAPI) | ✅ |
-| TICTA 2026 submission | ⏳ 20 July 2026 |
-| Mobile app (Flutter) | ⬜ |
-| External validation (TBscreen, etc.) | ⬜ |
-| On-device inference (TFLite/ONNX) | ⬜ |
 
 ---
 
